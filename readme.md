@@ -13,7 +13,7 @@ This function returns a subset of columns from an eprime file after tring to rep
 ```
 [vals,result] = eprime_data_get(parms)
 %
-% Gets a subset of the columns present in an eprime file solving for encoding issues.
+% Gets a subset of the columns present in an eprime file fixing encoding issues.
 %
 % Required input:
 %    parms.fname     name of file to read
