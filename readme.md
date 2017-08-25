@@ -1,14 +1,11 @@
 ## E-Prime data get
 
-The ABCD project is using E-Prime to run behavioral tests connected to MRI scans. E-prime produces EDAT2 (binary) files with the behavioral results. EDAT2 files are converted, at the acquisition site, into ASCII TAB-separated (preferred) or CSV files (extensions .txt and .csv, resepectively).
+The ABCD project is using E-Prime to run behavioral tests connected to MRI scans. E-prime produces EDAT2 (binary) files with the behavioral results. EDAT2 files are converted, at the acquisition site, into ASCII TAB-separated (preferred) or CSV files (extensions .txt and .csv, resepectively). We have observed several types of errors occuring during this translation.
 
-We have observed several types of errors occuring during this translation.
+This project tries to extract information from a given ASCII E-prime file, despite known encoding issues.
 
-This project tries to extract information from a given ASCII E-prime file, solving for the encoding issues that we have observed.
-
-It consists, right now, of the Matlab function eprime_data_get.m.
-It gets a subset of the columns present in an eprime file solving for encoding issues.
-I am currently modifying the script to read all the ASCII Eprime file, corrects issues as possible, and save the fixed version.
+The project consists of the Matlab function eprime_data_get.m.
+This function returns a subset of columns from an eprime file after tring to repair encoding issues, and reports the issue.
 
 
 
