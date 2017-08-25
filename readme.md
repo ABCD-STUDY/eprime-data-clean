@@ -8,7 +8,6 @@ The project consists of the Matlab function eprime_data_get.m.
 This function returns a subset of columns from an eprime file after tring to repair encoding issues, and reports the issue.
 
 
-
 ### Usage
 
 ```
@@ -32,3 +31,8 @@ The value of result is formed by adding the following numbers:
   4  Best guess of colum names includes empty cells
 
 ```
+
+
+### Example
+
+eprime_datetime_get.m   Uses eprime_data_get to extract timestamps from an E-prime data file.
