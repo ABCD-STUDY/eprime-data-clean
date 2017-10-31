@@ -20,7 +20,7 @@ eprime_spreadsheet_read.py  in_file  option  [out_file (without .ext)]
 %     Quoted rows:                     0,    100  -->  [False, True ]
 %     Start_time_info:                 0,   1000  -->  [Found, Unable to extract]
 %     File read:                       0,  10000  -->  [Yes,   Unable to read]
-%     Filename contains '()':             100000  -->  [Yes]   (Not checked by this function)
+%     Filename contains '()':             100000  -->  [Yes]  (Reserved, calculated elsewhere)
 %     Experiment and filename mismatch:  1000000  -->  [Yes]
 %   ExportFile    Save a tab-separated output file with depurated contents of input file; we'll make extension = '.txt'
 ```
