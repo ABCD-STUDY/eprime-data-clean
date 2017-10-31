@@ -2,7 +2,7 @@
 
 The ABCD project is using E-Prime to run behavioral tests during fMRI scans. E-Prime produces EDAT2 (binary) files with the behavioral results. EDAT2 files are converted, at the acquisition site, into ASCII TAB-separated (preferred) or CSV files (extensions .txt and .csv, resepectively). We have observed several types of errors originated during this conversion.
 
-eprime_sprdsht_get.py extracts information from a given ASCII E-prime file, fixing known encoding issues. It can return information about an E-Prime file (experiment date and time, file diagnositics), or rewrite a clean version of the E-Prime file.
+eprime_sprdsht_get.py extracts information from a given ASCII E-prime file, fixing known encoding issues. It can return information about an E-Prime file (experiment date and time, file diagnostics), or rewrite a clean version of the E-Prime file.
 
 
 ### Usage
