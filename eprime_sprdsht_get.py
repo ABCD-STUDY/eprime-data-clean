@@ -313,7 +313,10 @@ if diagns >= 1000000  and  not optn in ['DateTime', 'DateTimeDiagnos', 'Diagnos'
 if optn == 'ExportFile':
     fxpos = fname_out.rfind('.')
     if fxpos > 0:
-        fname_bas = fname_out[0:fxpos]
+        if fxpos > (len(fname_out) - 5):   # The rightmost '.' is near the end of filename, and thus consistent with an extension
+            fname_bas = fname_out[0:fxpos]
+        else:
+            fname_bas = fname_out
     else:
         if fxpos < 0:
             fname_bas = fname_out
