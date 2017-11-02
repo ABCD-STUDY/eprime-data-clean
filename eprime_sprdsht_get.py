@@ -11,33 +11,43 @@ if 3 <= len(sys.argv) and len(sys.argv) <= 4:
     fname = sys.argv[1]
     optn = sys.argv[2]
     
-    if optn == 'ExportFile':
-        if len(sys.argv) == 4:
-            fname_out = sys.argv[3]
-        else:
-            cmnd_syntx_ok = False
+    if optn in ['Encoding', 'Summary', 'ExportFile', 'DateTime', 'DateTimeDiagnos', 'Diagnos']:
+        if optn == 'ExportFile':
+            if len(sys.argv) == 4:
+                fname_out = sys.argv[3]
+            else:
+                cmnd_syntx_ok = False
+    else:
+        print('Wrong option')
+        cmnd_syntx_ok = False
+
 else:
     cmnd_syntx_ok = False
 
 if not cmnd_syntx_ok:
     print('Reads an ASCII file containing an E-Prime spreadsheet. Extract contents while fixing encoding and format issues.')
-    print('Extracts particular information, like experiment date and time, or writes a file with clean spreadsheet.')
-    print('                                                                Octavio Ruiz. 2017jun05-sep26, oct17-31')
+    print('Returns diagnostic code, extracts particular information like experiment date and time, or writes a file with clean spreadsheet.')
+    print('                                                                                     Octavio Ruiz. 2017jun05-sep26, oct17-nov01')
     print('Usage:')
-    print('  ./eprime_spreadsheet_read.py  in_file  option  [out_file (without .ext)]\n')
+    print('  ./eprime_spreadsheet_read.py')
+    print('  ./eprime_spreadsheet_read.py  file  option')
+    print('  ./eprime_spreadsheet_read.py  file  ExportFile  out_file (without .ext)\n')
     print('Options:')
-    print('  Encoding         Returns encoding, file format, and row organization of input file')
-    print('  Summary          As Encoding, plus a summary of column names and last row')
-    print('  DateTime         Returns ISO starting date and time of experiment reported in input file')
-    print('  DateTimeDiagnos  As DateTime, plus a file diagnostic code formed by summing:')
-    print("    Encoding:                        1,      2  -->  ['utf-8','utf-16']")
-    print("    Separator:                      10,     20  -->  [Tab,   Comma]")
-    print("    Quoted rows:                     0,    100  -->  [False, True ]")
-    print("    Start_time_info:                 0,   1000  -->  [Found, Unable to extract]")
-    print("    File read:                       0,  10000  -->  [Yes,   Unable to read]")
-    print("    Filename contains '()':             100000  -->  [Yes]   (Not checked by this function)" )
-    print("    Experiment and filename mismatch:  1000000  -->  [Yes]")
-    print("  ExportFile    Save a tab-separated output file with depurated contents of input file; we'll make extension = '.txt'")
+    print('                    Prints this help')
+    print('   Encoding         Returns encoding, file format, and row organization of input file')
+    print('   Summary          As Encoding, plus a summary of column names and last row')
+    print("   ExportFile       Save a tab-separated output file with clean contents of input file; we'll make extension = '.txt'")
+    print('   DateTime         Returns ISO starting date and time of experiment reported in input file')
+    print('   DateTimeDiagnos  As DateTime, plus a file diagnostic code (see below):')
+    print('   Diagnos          Returns a diagnostic number, formed by summing:')
+    print("      File found?                           0  -->  [Unable to find file]")
+    print("      Encoding:                     1,      2  -->  ['utf-8','utf-16']")
+    print("      Separator:                   10,     20  -->  [Tab, Comma]")
+    print("      Quoted rows?                  0,    100  -->  [No, Yes]")
+    print("      Start_time_info:              0,   1000  -->  [Found, Unable to extract]")
+    print("      File read?                    0,  10000  -->  [Yes,   Unable to read]")
+    print("      Filename contains '()':          100000  -->  [Yes]  (Reserved, calculated elsewhere)")
+    print("      Experiment matches filename?    1000000  -->  [No]")
     print()
 
     sys.exit()
@@ -117,11 +127,15 @@ def file_check( fname ):
             itab = 2
 
         # Rows encased by quotation marks (as we found in a few files)?
+
         ff = open(fname, encoding=f_encoding)
-        # get a "typical" line, after the initial rows
-        for i in range(0,rows_n_min):
+        # get a "typical" line, after the min. number of initial rows
+        i_typ = int( (rows_n_min + f_num_lines) / 2 )
+        # for i in range(0,rows_n_min):
+        for i in range(0,i_typ):
             line = ff.readline()
-            seps_in_line_num = line.count('\t')
+            # seps_in_line_num = line.count('\t')
+        seps_in_line_num = line.count('\t')
         ff.close()
         aa = line.rstrip('\n')    # If line has a carriage return at the end, as it should, remove it
         if aa.startswith('"') and aa.endswith('"'):
@@ -132,19 +146,22 @@ def file_check( fname ):
             iquot = 0
 
         # Find the first line in file that seems to contain the column names
-        # (some files have a comment in the first line, instead of the list of column names).
-        # Use identified separator.
+        # (some files have comments in the first line or lines, instead of the column names).
+        # use identified separator
         seps_in_line_num_typic = seps_in_line_num
 
         ff = open(fname, encoding=f_encoding)
-        for hoffs in range(0,rows_n_min):
+        # for hoffs in range(0,rows_n_min):
+        for hoffs in range(0, f_num_lines-1):
             line = ff.readline()
             if 0 < line.count('\t') and line.count('\t') >= seps_in_line_num_typic:
                 break
         ff.close()
 
         # Calculate a "diagnostic" number summarizing file's econding and organization
-        diagns  =  ienc + itab*10 + iquot*100
+        diagns = ienc + itab*10 + iquot*100
+    else:
+        diagns = 0
 
     return f_encoding, sep_tab, hoffs, f_num_lines, f_txt_lngth, quoted_rows, diagns
 #-----------------------------------------------------------------------
@@ -170,8 +187,8 @@ def sprdhst_read( fname, encd, offs, sep_tab ):
 #-----------------------------------------------------------------------
 
 
-#----------------------------------------------------------------------------------------------------------------
-#-------------------------------------------------- Main --------------------------------------------------------
+# ============================================================================================================================
+#                                                          Main
 import io
 import datetime
 import dateutil.parser
@@ -179,19 +196,28 @@ import dateutil.parser
 pd.set_option('display.width', 512)
 
 # ------------------------------------------------------------------------
-# Find file encoding and format
+# Find file, find and report file encoding and format
+
 encoding, sep_tab, hoffs, lines_num, txt_lngth, quoted_rows, diagns  =  file_check( fname )
+
+if diagns <= 0:
+    if optn in ['Diagnos']:
+        print( diagns )
+    else:
+        print('File not found:', fname)
+    sys.exit()
 
 if len(encoding) <= 0:
     diagns = diagns + 10000
     print('eprime_sprdsht_get.py:  Unable to read file ', fname)
-    sys.exit(1)
-# ------------------------------------------------------------------------
 
-# ------------------------------------------------------------------------
 if optn in ['Encoding', 'Summary', 'ExportFile']:
     print('encoding =', encoding, ',  sep_tab =', sep_tab, ',  hoffs =', hoffs,
           ',  lines_num =', lines_num, ',  txt_lngth =', txt_lngth, ',  quoted_rows =', quoted_rows, ',  diagns =', diagns)
+
+if diagns >= 10000:
+    print( diagns )
+    sys.exit()
 # ------------------------------------------------------------------------
 
 # ------------------------------------------------------------------------
@@ -222,26 +248,66 @@ tsk_fid_dict = {'MID':    'MID',
 exper = ''
 exp_cont_name_match = False
 
+# if 'ExperimentName' in dat.columns[0]:   # It can be 'ExperimentName' or '0-ExperimentName' or ...?...
+#     # Find experiment reported in spreadsheet
+#     ExpNameCol = dat.columns[0]
+#     for tsk in tsk_fid_dict.keys():
+#         if tsk in dat[ExpNameCol].unique()[0]:
+#             exper = tsk
+#             exp_fnameID_list = tsk_fid_dict[tsk]
+#             break
+#     # Check if experiment matches file name identifier
+#     for exp_fn in exp_fnameID_list:
+#         if fname.rfind(exp_fn) > (len(fname)-10):   # (look for task id near the end of file name)
+#             exp_cont_name_match = True
+#             break
+
 if 'ExperimentName' in dat.columns[0]:   # It can be 'ExperimentName' or '0-ExperimentName' or ...?...
     # Find experiment reported in spreadsheet
     ExpNameCol = dat.columns[0]
-    for tsk in tsk_fid_dict.keys():
-        if tsk in dat[ExpNameCol].unique()[0]:
-            exper = tsk
-            exp_fnameID_list = tsk_fid_dict[tsk]
-            break
-    # Check if experiment matches file name identifier
-    for exp_fn in exp_fnameID_list:
-        if fname.rfind(exp_fn) > (len(fname)-10):   # (look for task id near the end of file name)
-            exp_cont_name_match = True
-            break
+
+    exp_in_file = dat[ExpNameCol].unique()[0]
+    if isinstance(exp_in_file, str):
+        for tsk in tsk_fid_dict.keys():
+            if tsk in exp_in_file:
+                exper = tsk
+                exp_fnameID_list = tsk_fid_dict[tsk]
+                break
+        # Check if experiment matches file name identifier
+        for exp_fn in exp_fnameID_list:
+            if fname.rfind(exp_fn) > (len(fname)-10):   # (look for task id near the end of file name)
+                exp_cont_name_match = True
+                break
+    else:
+        exper = ''
+        exp_cont_name_match = False
 
 if exp_cont_name_match:
     pass
 else:
     diagns = diagns + 1000000
-# ------------------------------------------------------------------------
 
+
+if diagns >= 1000000  and  not optn in ['DateTime', 'DateTimeDiagnos', 'Diagnos']:
+    if len(exper) <= 0:
+        print('\nUnable to find experiment type in file contents\n')
+    else:
+        if not exp_cont_name_match:
+            print('\nExperiment type in file does not match file name')
+
+    print('encoding =', encoding, ',  sep_tab =', sep_tab, ',  hoffs =', hoffs,
+        ',  lines_num =', lines_num, ',  txt_lngth =', txt_lngth, ',  quoted_rows =', quoted_rows, ',  diagns =', diagns)
+
+# if optn in ['Encoding', 'Summary', 'ExportFile']:
+#     if len(exper) <= 0:
+#         print('\nUnable to find experiment type in file contents\n')
+#     else:
+#         if not exp_cont_name_match:
+#             print('\nExperiment type in file does not match file name')
+
+#     print('encoding =', encoding, ',  sep_tab =', sep_tab, ',  hoffs =', hoffs,
+#           ',  lines_num =', lines_num, ',  txt_lngth =', txt_lngth, ',  quoted_rows =', quoted_rows, ',  diagns =', diagns)
+# ------------------------------------------------------------------------
 
 # ------------------------------------------------------------------------
 if optn == 'ExportFile':
@@ -253,18 +319,17 @@ if optn == 'ExportFile':
             fname_bas = fname_out
         else:
             print('Error: invalid output file name')
-            exit(1)
+            exit()
 
     if len(fname_bas) > 0:
         fname_out = fname_bas + '.txt'
-    print( 'Writing tab-separated file:', fname_out, '...' )
+    print( '\nWriting tab-separated file:', fname_out, '...' )
 
     dat.to_csv( fname_out, index=False, sep='\t' )
 
     print('done')
     sys.exit()
 # ------------------------------------------------------------------------
-
 
 # ------------------------------------------------------------------------
 if optn == 'Summary':
@@ -307,6 +372,7 @@ elif optn == 'DateTime':
     print( exp_t0 )
 elif optn == 'DateTimeDiagnos':
     print( exp_t0, ',  ', diagns )
+elif optn == 'Diagnos':
+    print( diagns )
 # ------------------------------------------------------------------------
-#----------------------------------------------------------------------------------------------------------------
-#----------------------------------------------------------------------------------------------------------------
+# ============================================================================================================================
