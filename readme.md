@@ -1,15 +1,14 @@
 ## E-Prime data get
 
-The ABCD project is using E-Prime to run behavioral tests during fMRI scans. E-Prime produces EDAT2 (binary) files with thebehavioral results. EDAT2 files are converted, at the acquisition site, into ASCII TAB-separated (preferred) or CSV files (extensions .txt and .csv, resepectively). We have observed several types of errors originated during this conversion.
+The ABCD project is using E-Prime to run behavioral tests during fMRI scans. E-Prime produces EDAT2 (binary) files with the behavioral results. EDAT2 files are converted, at the acquisition site, into ASCII TAB-separated (preferred) or CSV files (extensions .txt and .csv, resepectively). We have observed several types of errors originated during this conversion.
 
-eprime_sprdsht_get.py reads one or more text files containing E-Prime spreadsheets, detect each file's encoding and format, interprets their content fixing known encoding issues, identifies the behavioral task in the spreadsheet, extracts the experiment's starting date and time, calculates the time difference between this date&time and a given series date&time, and evaluates the matching between the file name and a given pGUID.
+eprime_sprdsht_get.py reads one or more text files containing E-Prime spreadsheets, detects each file's encoding and format, interprets their content fixing known encoding issues, identifies the behavioral task in the spreadsheet, extracts the experiment's starting date and time, calculates the time difference between this date&time and a given series date&time, and evaluates the matching between the file name and a given pGUID.
 
-The program calculates and returns a "diagnostic" number summarizing the file format and contents; it returns also the experiment's task, starting date and time, and other information.
+The program calculates and returns a diagnostic number summarizing the file format and contents; it returns also the experiment's task, starting date and time, and other information.
 
-If requested, the script writes a clean version of the E-Prime file.
+If requested, the script exports a clean version of the E-Prime file.
 
-This program can also locate and check a set of files under a given directory or path.
-
+If a directory or path is provided, the program locates and processes all files under that path.
 
 
 
@@ -65,8 +64,8 @@ Currently  practice experiments are considered as not valid.
 
 ### Examples
 
-  ./eprime_sprdsht_get.py  some_file.tsv  Info 
-  ./eprime_sprdsht_get.py   some_dir  PickFile  "20170520 164900"  ""  ""  Info
-  ./eprime_sprdsht_get.py   some_dir  PickFile  "20170520 164900"  NDAR_INVJPLWZ1Z0  MID  Info
+  ./eprime_sprdsht_get.py  some_file.tsv  Info
+  ./eprime_sprdsht_get.py  some_dir  PickFile  "20170520 164900"  ""  ""  Info
+  ./eprime_sprdsht_get.py  some_dir  PickFile  "20170520 164900"  NDAR_INVJPLWZ1Z0  MID  Info
   ./eprime_sprdsht_get.py  "/dir0/subdir1/*INVB9CDPZUA*/*/*exported*"
 
