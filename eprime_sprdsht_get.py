@@ -13,6 +13,7 @@ pd.set_option('max_colwidth',   256)
 import glob, json
 
 from difflib import SequenceMatcher
+import copy
 
 
 #---------------------------------------------------------------------------------------------------
@@ -24,24 +25,26 @@ Info_Prot = {
     'hoffs':       None,
     'n_rows':      None,
     'n_cols':      None,
+    'exp_in_file': None,
     'exper':       None,
     'exp_datime':  None,
-    'delay' :  float('nan'),
-    'exp_t0':  '0000-00-00 00:00:00',
-    'tdiff' :  float('nan'),
-    'fout_ok' :  None,
-    'fout_msg':  '',
-    'diagnos':   -256,
-    'pGUIDmatch': 0.0,
-    'naming_ok':  0,
+    'delay' :      float('nan'),
+    'exp_t0':      '0000-00-00 00:00:00',
+    'tdiff' :      float('nan'),
+    'fout_ok' :       None,
+    'fout_msg':       '',
+    'diagnos':       -256,
+    'pGUIDmatch':     0.0,
+    'naming_ok':       0,
+    'fname_exp_match': 0,
     'ok' : None,
     'msg': ''
 }
 
 # Task keys and corresponding file-name identifiers
-tsk_fid_dict = {'MID':    'MID',
+tsk_fid_dict = {'MID':   ['MID'],
                 'nBack': ['NBACK','WM','REC'],
-                'SST':    'SST' }
+                'SST':   ['SST'] }
 
 encd_optns_list = ['utf-8','utf-16']
 
@@ -61,7 +64,7 @@ def program_description():
     print('Read text file(s) containing a E-Prime spreadsheet(s), detect encoding and format, interpret content,')
     print("check if experiment matches file name, extract experiment's date and time and other information.")
     print('This program can also locate and check a set of files under a given directory or path.')
-    print('                                                     Octavio Ruiz.  2017jun05-nov01, 2018feb19-may28')
+    print('                                                      Octavio Ruiz.  2017jun05-nov01, 2018feb19-jun25')
     print('Usage:')
     print('  ./eprime_sprdsht_get.py                          Print this help')
     print('  ./eprime_sprdsht_get.py file Summary             Read file, print summary of file encoding and contents')
@@ -84,8 +87,11 @@ def program_description():
     print('Where')
     print('  Task is  "" or one of', tsk_fid_dict.keys() )
     print()
-    print('Info prints output row:')
-    print('  diagnos ,  pGUIDmatch ,  naming_ok ,  exp_t0 ,  task ,  tdiff_(minutes) ,  full_file_fname')
+    print('Info, when argument is a file, prints:')
+    print('    diagnos ,  pGUIDmatch ,  naming_ok ,  exp_t0 ,  task ,  full_file_fname')
+    print()
+    print('Info, when arguments are  dir PickFile "YYYYmmdd HHMMSS" ,  prints:')
+    print('    diagnos ,  pGUIDmatch ,  naming_ok ,  exp_t0 ,  task ,  time_diff(minutes) ,  full_file_fname')
     print()
     print('diagnos is a sum of values from the following code:')
     print('  diag = 0  File not found')
@@ -106,7 +112,7 @@ def program_description():
     print()
     print('naming_ok = 1  =>  file name starts with "NDAR_INV"')
     print()
-    print('Currently  practice experiments are considered as not valid.')
+    print('Spreadsheets with practice experiments are considered not valid.')
     print()
     print('Examples:')
     print('  ./eprime_sprdsht_get.py   .  PickFile  "20170520 164900"  ""  ""  Info')
@@ -346,7 +352,9 @@ def sprdsht_read( sprdsh, sep_tab, num_lines, line_typic_seps_num ):
 
 # ---------------------------------------------------------------------------------------------------------------
 def ExperimentCheck( data, fname ):
+    exp_in_file = None
     exper = 'Unknown'
+    fname_exp_match = 0
     ok  = True
     msg = ''
     exp_diagnos = 0
@@ -357,7 +365,8 @@ def ExperimentCheck( data, fname ):
         ok = False
         msg = 'Unable to interpret file as an EPrime spreadsheet. '
         exp_diagnos = -32
-        return exper, ok, msg, exp_diagnos
+        return exp_in_file, exper, fname_exp_match, ok, msg, exp_diagnos
+
 
     # Find experiment reported in spreadsheet
     if 'ExperimentName' in data.columns[0]:   # It can be 'ExperimentName' or '0-ExperimentName' or ...?...
@@ -367,16 +376,15 @@ def ExperimentCheck( data, fname ):
         if Verbose:
             print( 'exp_in_file:', exp_in_file )
 
-        if 'practice' in exp_in_file.lower():
-            exper = 'Practice'
-            ok = False
-            msg = 'Practice experiment. '
-            exp_diagnos = -64
+        if isinstance(exp_in_file, str):   # Some files have a number instead of an experim.description
 
-        else:
-            exp_name_match = False
+            if 'practice' in exp_in_file.lower():
+                exper = 'Practice'
+                ok = False
+                msg = 'Practice experiment. '
+                exp_diagnos = -64
 
-            if isinstance(exp_in_file, str):
+            else:
                 exp_fnameID_list = []
                 for tsk in tsk_fid_dict.keys():
                     if tsk.lower() in exp_in_file.lower():
@@ -384,49 +392,58 @@ def ExperimentCheck( data, fname ):
                         exp_fnameID_list = tsk_fid_dict[tsk]
                         break
 
+                if Verbose:
+                    print('exp_fnameID_list =', exp_fnameID_list )
+
                 if len(fname):
                     # Check if experiment matches file name identifier
                     for exp_fn in exp_fnameID_list:
-                        if fname.rfind(exp_fn) > (len(fname)-10):   # (look for task id near the end of file name)
-                            exp_name_match = True
+                        if fname.lower().rfind(exp_fn.lower()) > (len(fname)-13):   # (look for task id near the end of file name)
+                            fname_exp_match = 1
                             break
                 else:
                     pass
-            else:
-                exp_name_match = False
 
-            if len(fname):
-                if exp_name_match:
-                    msg = 'Experiment matches file name. '
-                    exp_diagnos =  64
-                else:
-                    ok = False
-                    msg = 'Experiment in spreadsheet does not match file name. '
-                    exp_diagnos = -64
-            # else:
-            #     msg = 'File name not checked. '
+                if len(fname):
+                    if fname_exp_match:
+                        exp_diagnos =  64
+                # else:
+                #   Not an error; but we can check later fname_exp_match if requested.
+
+        else:
+            ok = False
+            msg = 'Invalid experiment information in spreadsheet. '
+            exp_diagnos = -32
 
     else:
         ok = False
         msg = 'Unable to recognize experiment in spreadsheet. '
         exp_diagnos = -32
     
-    return exper, ok, msg, exp_diagnos
+    return exp_in_file, exper, fname_exp_match, ok, msg, exp_diagnos
 # ---------------------------------------------------------------------------------------------------------------
 
 
 # ---------------------------------------------------------------------------------------------------------------
 #                                                     Main function
-def EPrime_Info_and_Data_get( fname, optn='' ):
-    Info = Info_Prot
+def EPrime_Info_and_Data_get( fname ):
+    Info = copy.deepcopy( Info_Prot )
     data = pd.DataFrame()
     exp_diagnos = 0
 
-    # Does file name contain official pGUID format?
+    # # Does file name contain official pGUID format?
+    # Info['naming_ok'] = 0
+    # f_nopath_name = os.path.basename( fname )
+    # if f_nopath_name.startswith('NDAR_INV') and f_nopath_name.count('_') == 2:
+    #     Info['naming_ok'] = 1
+
+    # Does file name complies with ABCD format: official pGUID format + _taskname ?
     Info['naming_ok'] = 0
     f_nopath_name = os.path.basename( fname )
     if f_nopath_name.startswith('NDAR_INV') and f_nopath_name.count('_') == 2:
-        Info['naming_ok'] = 1
+        pGUID_short = f_nopath_name.replace('NDAR_INV','')
+        if len(pGUID_short.split('_')[0]) == 8:
+            Info['naming_ok'] = 1
 
     # ---------------------------------------------------------------------------------------------------------------
     #                                 Read file and determine encoding and format
@@ -459,13 +476,13 @@ def EPrime_Info_and_Data_get( fname, optn='' ):
     Info['hoffs']  = hoffs
     Info['n_rows'] = data.shape[0]
     Info['n_cols'] = data.shape[1]
-    Info['ok']     = ok
-    Info['msg']    = msg
+    Info['ok']  = ok
+    Info['msg'] = msg
 
     if ok:
-        # Further checks, to discard plain-text file that are not really spreadsheets
+        # Further checks: discard plain-text files that are not really spreadsheets
         if Info['n_rows'] < rows_n_min or Info['n_cols'] < cols_n_min:
-            Info['ok'] = ok
+            Info['ok'] = False
             Info['msg'] += 'Invalid num. of rows or cols. '
 
     if not Info['ok']:
@@ -485,16 +502,15 @@ def EPrime_Info_and_Data_get( fname, optn='' ):
         print()
     # ---------------------------------------------------------------------------------------------------------------
 
+
     # ---------------------------------------------------------------------------------------------------------------
     #             Check that file contains a known task.
-    #             Additionaly, if optn = 'FileNameCheck', check that file contents correspond to file's name
 
-    if optn == 'FileNameCheck':
-        exper, ok, msg, exp_diagnos  =  ExperimentCheck( data, fname )
-    else:
-        exper, ok, msg, exp_diagnos  =  ExperimentCheck( data, '' )
+    exp_in_file, exper, fname_exp_match, ok, msg, exp_diagnos  =  ExperimentCheck( data, fname )
 
-    Info['exper'] = exper
+    Info['exp_in_file']     = exp_in_file
+    Info['exper']           = exper
+    Info['fname_exp_match'] = fname_exp_match
     Info['ok']  = ok
     Info['msg'] = Info['msg'] + msg
 
@@ -506,8 +522,12 @@ def EPrime_Info_and_Data_get( fname, optn='' ):
             print('Info =', Info, '\n' )
 
         Info = File_Diagnostics( Info )
-        # If exp_diagnos < 0, combine the negative summary of the file-encoding number with exp_diagnos
-        if exp_diagnos < 0:
+
+        # Add exp_diagnos to File_Diagnostics.
+        # If exp_diagnos < 0, make the file-encoding number negative
+        if exp_diagnos > 0:
+            Info['diagnos'] = exp_diagnos + Info['diagnos']
+        else:
             Info['diagnos'] = exp_diagnos - Info['diagnos']
         return Info, data
 
@@ -529,14 +549,24 @@ def EPrime_Info_and_Data_get( fname, optn='' ):
     except:
         exp_diagnos += -128
         Info['ok']  = False
-        Info['msg'] = Info['msg'] + 'Unable to extract or interpret date or time. '
+        Info['msg'] += 'Unable to extract or interpret date or time. '
+
+    if Verbose:
+        print( Info, '\n')
 
     if Info['ok']:
         Info['exp_datime'] = exp_datime
 
-        if '_REC' in fname or '_WM' in fname:
+        # if '_REC' in fname or '_WM' in fname:
+        #     # File contains an nBack recall experiment, performed outside the scanner,
+        #     # therefore there is no waiting for a sync.pulse from the scanner to begin the experiment
+        #     Info['exp_t0'] = Info['exp_datime']
+        #     ok = True
+
+        if  Info['exper'] == 'nBack' and ('Rec' in Info['exp_in_file'] or 'REC' in Info['exp_in_file']):
             # File contains an nBack recall experiment, performed outside the scanner,
             # therefore there is no waiting for a sync.pulse from the scanner to begin the experiment
+            Info['delay']  = float('nan')
             Info['exp_t0'] = Info['exp_datime']
             ok = True
 
@@ -581,7 +611,7 @@ def EPrime_Info_and_Data_get( fname, optn='' ):
         Info['msg'] = Info['msg'] + msg
 
         if Verbose:
-            print( Info['msg'], '\n')
+            print( Info, '\n')
 
     else:
         if Verbose:
@@ -650,7 +680,7 @@ def List_and_Pick_Files( fname, optn, fname_out, subj, ref_time_arg, task_arg, o
     # ok  = True
     # msg = ''
     Files = pd.DataFrame()
-    EPrime_Info = Info_Prot
+    EPrime_Info = copy.deepcopy( Info_Prot )
     EPrime_Data = pd.DataFrame()
 
     f_path = fname
@@ -681,8 +711,6 @@ def List_and_Pick_Files( fname, optn, fname_out, subj, ref_time_arg, task_arg, o
 
 
     for j, fname_full in enumerate( f_list ):
-        EPrime_Info = Info_Prot
-        EPrime_Data = pd.DataFrame()
 
         path  = os.path.dirname( fname_full)
         fname = os.path.basename(fname_full)
@@ -690,14 +718,9 @@ def List_and_Pick_Files( fname, optn, fname_out, subj, ref_time_arg, task_arg, o
         if Verbose:
             print('Reading:', fname_full )
 
-        try:
-            EPrime_Info, EPrime_Data  =  EPrime_Info_and_Data_get( fname_full )
-        except:
-            pass
+        EPrime_Info, EPrime_Data  =  EPrime_Info_and_Data_get( fname_full )
 
-        # if len(EPrime_Info) > 0  and  len(EPrime_Data) > 0  and  EPrime_Info['ok']:
-        # if len(EPrime_Info) > 0:
-        if EPrime_Info['fname']:   # we got info about this file, but we don't know yet if is a valid exp. spreadsheet
+        if EPrime_Info['fname']:
 
             # If a subject ID was provided: search for a perfect-match substring in the file name then evaluate general string similarity
             pGUIDmatch = 0.0
@@ -716,19 +739,24 @@ def List_and_Pick_Files( fname, optn, fname_out, subj, ref_time_arg, task_arg, o
                                         'n_rows':      EPrime_Info['n_rows'],
                                         'n_cols':      EPrime_Info['n_cols'],
                                         'exper':       EPrime_Info['exper'],
+                                        'exp_in_file': EPrime_Info['exp_in_file'],
                                         'exp_datime':  EPrime_Info['exp_datime'],
                                         'delay':       EPrime_Info['delay'],
                                         'exp_t0':      EPrime_Info['exp_t0'],
-                                        'diagnos':     EPrime_Info['diagnos'],
-                                        'ok':          EPrime_Info['ok'],
-                                        'naming_ok':   EPrime_Info['naming_ok'],
-                                        'msg':         EPrime_Info['msg'],
-                                        'pGUIDmatch':  pGUIDmatch,
+                                        'diagnos':         EPrime_Info['diagnos'],
+                                        'ok':              EPrime_Info['ok'],
+                                        'naming_ok':       EPrime_Info['naming_ok'],
+                                        'fname_exp_match': EPrime_Info['fname_exp_match'],
+                                        'msg':             EPrime_Info['msg'],
+                                        'pGUIDmatch':      pGUIDmatch,
                                         'path': path }),  index=[j] )
 
             Files = Files.append( record, ignore_index=True )
+        else:
+            pass
 
-    EPrime_Info = Info_Prot
+
+    EPrime_Info =  copy.deepcopy( Info_Prot )
     EPrime_Data = pd.DataFrame()
 
     if len(Files) <= 0:
@@ -749,11 +777,12 @@ def List_and_Pick_Files( fname, optn, fname_out, subj, ref_time_arg, task_arg, o
 
 
     # Reorder columns
-    Files = Files[['file', 'encoding', 'sep_tab', 'quoted_rows', 'hoffs', 'n_rows', 'n_cols',
-                    'exper', 'exp_datime', 'delay', 'exp_t0', 'ok', 'pGUIDmatch', 'diagnos', 'naming_ok', 'msg', 'path']]
+    Files = Files[['file', 'encoding', 'sep_tab', 'quoted_rows', 'hoffs', 'n_rows', 'n_cols', 'exp_in_file',
+                    'exper', 'exp_datime', 'delay', 'exp_t0', 'ok', 'pGUIDmatch', 'diagnos', 'naming_ok', 'fname_exp_match', 'msg', 'path']]
 
     # Sort by ok, date & time, interpreted or not, prefered format
-    Files = Files.sort_values( by=['ok','pGUIDmatch','exp_datime', 'exper', 'diagnos', 'naming_ok'], ascending=[False, False, True, True, True, False] )
+    Files = Files.sort_values( by=['ok','pGUIDmatch','exp_datime', 'exper', 'diagnos', 'naming_ok', 'fname_exp_match'],
+                               ascending=[False, False, True, True, True, False, False] )
     Files = Files.reset_index( drop=True )
 
     if (Verbose or optn == 'ListFiles') and not quiet:
@@ -810,11 +839,18 @@ def List_and_Pick_Files( fname, optn, fname_out, subj, ref_time_arg, task_arg, o
             Files['tdiff']  = [ round( (s-ref_time).total_seconds()/60, 2 )  for s in Files['exp_t0']]
             Files['tdiffa'] = [ abs(s) for s in Files['tdiff'] ]
 
-            Files = Files.sort_values( by=['tdiffa', 'pGUIDmatch', 'exp_t0', 'exper', 'diagnos', 'naming_ok'], ascending=[True, False, True, True, True, False] )
+        #     Files = Files.sort_values( by=['tdiffa', 'pGUIDmatch', 'exp_t0', 'exper', 'diagnos', 'naming_ok'], ascending=[True, False, True, True, True, False] )
+        #     Files = Files.drop('tdiffa', axis=1)
+        # else:
+        #     Files['tdiff']  = float('nan')
+        #     Files = Files.sort_values( by=['pGUIDmatch', 'exp_t0', 'exper', 'diagnos', 'naming_ok'], ascending=[False, True, True, True, False] )
+
+            Files = Files.sort_values( by=['tdiffa', 'pGUIDmatch', 'exp_t0', 'exper', 'diagnos', 'naming_ok', 'fname_exp_match'],
+                                       ascending=[True, False, True, True, True, False, False] )
             Files = Files.drop('tdiffa', axis=1)
         else:
             Files['tdiff']  = float('nan')
-            Files = Files.sort_values( by=['pGUIDmatch', 'exp_t0', 'exper', 'diagnos', 'naming_ok'], ascending=[False, True, True, True, False] )
+            Files = Files.sort_values( by=['pGUIDmatch', 'exp_t0', 'exper', 'diagnos', 'naming_ok', 'fname_exp_match'], ascending=[False, True, True, True, False, False] )
 
         if Verbose or not optn2:
             print('Files')
@@ -824,14 +860,18 @@ def List_and_Pick_Files( fname, optn, fname_out, subj, ref_time_arg, task_arg, o
             print( Files.iloc[0].to_frame().T )
             print()
 
+        # Select top file in list for further processing
+
         fname = f_path + '/' + Files.iloc[0]['file']
         pGUIDmatch = Files.iloc[0]['pGUIDmatch']
         tdiff      = Files.iloc[0]['tdiff']
 
-        if optn2 in ['Info', 'ExportFile']:
-            EPrime_Info, EPrime_Data  =  EPrime_Info_and_Data_get( fname )
-        else:
-            EPrime_Info, EPrime_Data  =  EPrime_Info_and_Data_get( fname, 'FileNameCheck' )
+        # if optn2 in ['Info', 'ExportFile']:
+        #     EPrime_Info, EPrime_Data  =  EPrime_Info_and_Data_get( fname )
+        # else:
+        #     EPrime_Info, EPrime_Data  =  EPrime_Info_and_Data_get( fname, 'FileNameCheck' )
+
+        EPrime_Info, EPrime_Data  =  EPrime_Info_and_Data_get( fname )
 
         EPrime_Info['pGUIDmatch'] = pGUIDmatch
         EPrime_Info['tdiff'] = tdiff
@@ -860,7 +900,7 @@ def List_and_Pick_Files( fname, optn, fname_out, subj, ref_time_arg, task_arg, o
 if __name__ == "__main__":
     code = 0   # will be returned by 'sys.exit(diagnos)', whenever the program ends. Check this exit-status code with 'echo $?'
 
-    EPrime_Info = Info_Prot
+    EPrime_Info = copy.deepcopy( Info_Prot )
 
     cmnd_syntx_ok, fname, optn, fname_out, ref_time_arg, subj, task_arg, optn2  =  command_line_get_variables()
 
@@ -885,10 +925,20 @@ if __name__ == "__main__":
 
     elif optn in ['Info', 'InfoCheckName', 'ExportFile']:
         try:
-            if optn == 'Info':
-                EPrime_Info, EPrime_Data  =  EPrime_Info_and_Data_get( fname )
-            else:
-                EPrime_Info, EPrime_Data  =  EPrime_Info_and_Data_get( fname, 'FileNameCheck' )
+            # if optn == 'Info':
+            #     EPrime_Info, EPrime_Data  =  EPrime_Info_and_Data_get( fname )
+            # else:
+            #     EPrime_Info, EPrime_Data  =  EPrime_Info_and_Data_get( fname, 'FileNameCheck' )
+
+            EPrime_Info, EPrime_Data  =  EPrime_Info_and_Data_get( fname )
+
+            if EPrime_Info['ok']  and  optn == 'InfoCheckName':
+                if not EPrime_Info['fname_exp_match']:
+                    # Report mismatch by replacing exp_diagnos with its negative
+                    if EPrime_Info['diagnos'] > 0:
+                        EPrime_Info['diagnos'] = -64 - EPrime_Info['diagnos']
+                    else:
+                        EPrime_Info['diagnos'] = -64 + EPrime_Info['diagnos']
 
         except Exception as err:
             msg = 'Unable to read or interpret file. '
@@ -1039,3 +1089,49 @@ if __name__ == "__main__":
 
 
 
+                # if len(fname):
+                #     # Check if experiment matches file name identifier
+                #     if isinstance( exp_fnameID_list, list ):
+                #         for exp_fn in exp_fnameID_list:
+                #             if fname.lower().rfind(exp_fn.lower()) > (len(fname)-10):   # (look for task id near the end of file name)
+                #                 fname_exp_match = 1
+                #                 break
+                #     else:
+                #         exp_fn = exp_fnameID_list
+                #         if fname.lower().rfind(exp_fn.lower()) > (len(fname)-10):   # (look for task id near the end of file name)
+                #             fname_exp_match = 1
+
+                #     else:
+                #         ok = False
+                #         msg = 'Experiment in spreadsheet does not match file name. '
+                #         exp_diagnos = 0
+                # else:
+                #     msg = ''
+                #     exp_diagnos = 0
+
+
+        # EPrime_Info = copy.deepcopy( Info_Prot )
+        # EPrime_Data = pd.DataFrame()
+        # record      = pd.DataFrame()
+
+        # path  = os.path.dirname( fname_full)
+        # fname = os.path.basename(fname_full)
+
+        # if Verbose:
+        #     print('Reading:', fname_full )
+
+        # # try:
+        # #     EPrime_Info, EPrime_Data  =  EPrime_Info_and_Data_get( fname_full )
+        # # except:
+        # #     pass
+
+        # # if len(EPrime_Info) > 0  and  len(EPrime_Data) > 0  and  EPrime_Info['ok']:
+        # # if len(EPrime_Info) > 0:
+        # # if EPrime_Info['fname']:   # we got info about this file, but we don't know yet if is a valid exp. spreadsheet
+
+    #             Additionaly, if optn = 'FileNameCheck', check that file contents correspond to file's name
+
+    # if optn == 'FileNameCheck':
+    #     exper, fname_exp_match, ok, msg, exp_diagnos  =  ExperimentCheck( data, fname )
+    # else:
+    #     exper, fname_exp_match, ok, msg, exp_diagnos  =  ExperimentCheck( data, '' )

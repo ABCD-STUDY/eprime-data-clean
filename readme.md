@@ -15,6 +15,13 @@ If a directory or path is provided, the program locates and processes all files 
 ### Usage
 
 ```
+ ./eprime_sprdsht_get.py
+
+Read text file(s) containing a E-Prime spreadsheet(s), detect encoding and format, interpret content,
+check if experiment matches file name, extract experiment's date and time and other information.
+This program can also locate and check a set of files under a given directory or path.
+                                                      Octavio Ruiz.  2017jun05-nov01, 2018feb19-jun25
+Usage:
   ./eprime_sprdsht_get.py                          Print this help
   ./eprime_sprdsht_get.py file Summary             Read file, print summary of file encoding and contents
   ./eprime_sprdsht_get.py file Info                Read file, print diagnostics and file information
@@ -34,10 +41,13 @@ If a directory or path is provided, the program locates and processes all files 
                                                                                         (tab-separated, no comments before header line, extension = .txt)
                                                                                         outfile should be entered with no extension
 Where
-  Task is  "" or one of dict_keys(['SST', 'nBack', 'MID'])
+  Task is  "" or one of dict_keys(['MID', 'nBack', 'SST'])
 
-Info prints output row:
-  diagnos ,  pGUIDmatch ,  naming_ok ,  exp_t0 ,  task ,  tdiff_(minutes) ,  full_file_fname
+Info, when argument is a file, prints:
+    diagnos ,  pGUIDmatch ,  naming_ok ,  exp_t0 ,  task ,  full_file_fname
+
+Info, when arguments are  dir PickFile "YYYYmmdd HHMMSS" ,  prints:
+    diagnos ,  pGUIDmatch ,  naming_ok ,  exp_t0 ,  task ,  time_diff(minutes) ,  full_file_fname
 
 diagnos is a sum of values from the following code:
   diag = 0  File not found
@@ -58,7 +68,8 @@ diagnos is returned to the shell as exit-status code, that can be checked with "
 
 naming_ok = 1  =>  file name starts with "NDAR_INV"
 
-Currently  practice experiments are considered as not valid.
+Spreadsheets with practice experiments are considered not valid.
+
 ```
 
 
