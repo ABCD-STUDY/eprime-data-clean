@@ -10,7 +10,7 @@ The program returns a diagnostic number, per file, summarizing its format and co
 
 If requested, the script exports a clean, standard-format version of a particular E-Prime file.
 
-We include an additional script, abcd_get_eprime_datetime.m, to show the use of eprime_sprdsht_get.py from Matlab.
+We include an additional script, abcd_get_eprime_datetime.m, to show the use of eprime_sprdsht_get.py inside Matlab.
 
 
 ### Usage
