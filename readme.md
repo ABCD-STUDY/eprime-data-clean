@@ -92,8 +92,12 @@ Use: "echo $?" to check exit status code
 ### Examples
 
   ./eprime_sprdsht_get.py   partic1  PickFile  "20170520 164900"  ""  ""  Info
+
   ./eprime_sprdsht_get.py   partic1  PickFile  "20170520 164900"  NDAR_INVJPLWZ1Z0  ""   Info
+
   ./eprime_sprdsht_get.py   partic1  PickFile  "20170520 164900"  NDAR_INVJPLWZ1Z0  MID  Info
+
   ./eprime_sprdsht_get.py   /something/somewhere/site/NDAR_INVJPLZW1Z0/baseline_year_1_arm_1/sst-exported_NDAR_INVJPLZW1Z0_baseline_year_1_arm_1_SessionC
+
   ./eprime_sprdsht_get.py  "/something/somewhere/*/*INVB9CDPZUA*/*/*exported*"
   
